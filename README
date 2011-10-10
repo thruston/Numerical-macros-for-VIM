@@ -1,0 +1,8 @@
+Numerical macros for VIM
+
+Toby Thurston -- 10 Oct 2011 
+
+A small set of macros that I find useful to enhance VIM.  Comments always welcome. 
+
+Read the comments in the source files for details.  Better still use the perl POD tools 
+to get detailed guides to the perl tools, and pydoc for the python ones. 

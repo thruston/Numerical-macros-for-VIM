@@ -9,12 +9,12 @@
 # Usage: table delim verb [options] verb [options] ...
 #
 # Delimiter either specified or worked out from context if omitted
-# Normally just '  ' but in tex: & and \cr; in latex & and \\; in HTML etc...
+# Normally just '  ' but in tex: & and \cr; in latex & and \\; etc...
 #
 # Verbs: xp              transpose rows and cells
 #        sort col        sort by value of column, use UPPERCASE to reverse
 #        add function    add sum, mean, var, sd etc to foot of column
-#        arr col-list    rearrange/insert/delete cols or functions on cols.
+#        arr col-list    rearrange/insert/delete cols and/or do calculations on column values.
 #        dp dp-list      round numbers is each col to specified decimal places
 #        reshape wide | long   reshape table (for R etc)
 #        make tex | latex | plain   output in tex etc form
@@ -22,25 +22,25 @@
 #
 # For full documentaion read (or better still extract) the POD at the end
 #
-# Toby Thurston -- 27 Sep 2011
+# Toby Thurston -- 11 Nov 2011 
 
 use strict;
 use warnings;
 use feature "switch";
-use bignum  ('p', -12);         # nice rounding to 12 places
+#use bignum  ('p', -12);         # nice rounding to 12 places
 use Statistics::Descriptive;    # used for add functions
 use List::Util qw(min max sum);   
 use POSIX      qw(floor ceil);
 use Time::HiRes qw( gettimeofday tv_interval );
 
-my $DEBUG = 0;
+my $DEBUG = 0; 
 
 # following Cowlishaw, TRL p.136
 #                     sign?    mantissa------>     exponent? 
 my $Number_atom = qr{ [-+]? (?:\d+\.\d*|\.?\d+) (?:E[-+]?\d+)? }ixmso;
 my $Number_pattern   = qr{\A $Number_atom \Z}ixmso;
 my $Interval_pattern = qr{\A\( ( $Number_atom ) \, ( $Number_atom ) \)\Z}ixsmo;
-my $Date_pattern     = qr{\A (\d+)-?(\d\d)-?(\d\d) \Z}ixmso; # make groups capture
+my $Date_pattern     = qr{\A ([12]\d\d\d)\D?([01]\d)\D?([0123]\d) \Z}ixmso; # make groups capture
 my $Hrule_pattern    = qr{\A -+ \Z}ixmso; # just a line of --------------
 
 my %Action_for = (
@@ -91,7 +91,7 @@ if (@input_lines) {
     chomp(@input_lines);
 
     # find the clear margin of blank space to the left of the table, ignoring any completely blank lines
-    $indent = min( map { /^(\s*)\S/; length($1) } grep { !/^\s*$/ } @input_lines );
+    $indent = min( map { /^(\s*)\S/; length($1) } grep { !/^\s*$/ } @input_lines ) || 0;
 
     # recognize TeX and LateX delims automatically
     if ($input_lines[0] =~ /\&.*(\\cr|\\\\) \s* \Z/xms) {
@@ -101,10 +101,10 @@ if (@input_lines) {
     }
 }
 
-push @time_messages, sprintf "Read: %d ms\n", int(0.5+1000*tv_interval($start_time));
+push @time_messages, sprintf "Read: %d ms\n", 0.5+1000*tv_interval($start_time);
 
-# split the input lines into cells in $table->{data}
-my $table = { rows => 0, cols => 0 };
+# split the input lines into cells in $Table->{data}
+my $Table = { rows => 0, cols => 0 };
 for (@input_lines) {
     s/^\s*//; # remove leading space
     s/\s*$//; # remove trailing space
@@ -113,15 +113,15 @@ for (@input_lines) {
         $_ =~ s/\s*\Q$eol_marker\E\s*//iox;
     }
     if ( /^$/ || /$Hrule_pattern/ || /^\\noalign/ || /^\\intertext/ || /^\#/ ) {
-        push @{$table->{specials}->[$table->{rows}]}, $_; 
+        push @{$Table->{specials}->[$Table->{rows}]}, $_; 
         next;
     }
     my @cells = split $delim; 
-    push @{$table->{data}}, \@cells ;
-    $table->{rows}++;   
-    $table->{cols} = max($table->{cols},scalar @cells);
+    push @{$Table->{data}}, \@cells ;
+    $Table->{rows}++;   
+    $Table->{cols} = max($Table->{cols},scalar @cells);
 }
-push @time_messages, sprintf "Split: %d ms\n", int(0.5+1000*tv_interval($start_time));
+push @time_messages, sprintf "Split: %d ms\n", 0.5+1000*tv_interval($start_time);
 
 # work through the list of verbs
 while (@agenda) {
@@ -132,23 +132,23 @@ while (@agenda) {
         $option = undef;
     }
     if ( exists $Action_for{$verb} ) {
-        $table = $Action_for{$verb}->($table,$option)
+        $Action_for{$verb}->($option)
     }
 }
 
-push @time_messages, sprintf "Verbs: %d ms\n", int(0.5+1000*tv_interval($start_time));
+push @time_messages, sprintf "Verbs: %d ms\n", 0.5+1000*tv_interval($start_time);
 
 # FIXME check to see if header is all text and one cell short
 # then shove it over to the right by one (like a data.frame for R)
 
 # work out the widths and alignments
-my @widths = (0) x $table->{cols};
-my @aligns = (0) x $table->{cols};
-for (my $c=0; $c<$table->{cols}; $c++ ) {
-    for (my $r=0; $r<$table->{rows}; $r++ ) {
-        next unless defined $table->{data}->[$r][$c];
-        $widths[$c] = max($widths[$c], length $table->{data}->[$r][$c]);
-        if ( $table->{data}->[$r][$c] =~ $Number_pattern ) {
+my @widths = (0) x $Table->{cols};
+my @aligns = (0) x $Table->{cols};
+for (my $c=0; $c<$Table->{cols}; $c++ ) {
+    for (my $r=0; $r<$Table->{rows}; $r++ ) {
+        next unless defined $Table->{data}->[$r][$c];
+        $widths[$c] = max($widths[$c], length $Table->{data}->[$r][$c]);
+        if ( $Table->{data}->[$r][$c] =~ $Number_pattern ) {
             $aligns[$c]++;
         }
         else {
@@ -157,18 +157,18 @@ for (my $c=0; $c<$table->{cols}; $c++ ) {
     }
 }
 
-my $table_width = sum(0,@widths) + length($separator) * ($table->{cols}-1);
+my $table_width = sum(0,@widths) + length($separator) * ($Table->{cols}-1);
 
-for (my $c=0; $c<$table->{cols}; $c++ ) {
+for (my $c=0; $c<$Table->{cols}; $c++ ) {
     $widths[$c] *= -1 if $aligns[$c] < 0;
 }
 
-push @time_messages, sprintf "Widths: %d ms\n", int(0.5+1000*tv_interval($start_time));
+push @time_messages, sprintf "Widths: %d ms\n", 0.5+1000*tv_interval($start_time);
 
 # print the table to stdout
-for (my $r=0; $r<$table->{rows}; $r++ ) {
-    if ( exists $table->{specials}->[$r] ) {
-        for my $special_line ( @{$table->{specials}->[$r]} ) {
+for (my $r=0; $r<$Table->{rows}; $r++ ) {
+    if ( defined $Table->{specials}->[$r] ) {
+        for my $special_line ( @{$Table->{specials}->[$r]} ) {
             print q{ } x $indent;
             if ($special_line =~ $Hrule_pattern) {
                 if ($eol_marker eq '\\cr') {
@@ -185,9 +185,9 @@ for (my $r=0; $r<$table->{rows}; $r++ ) {
         }
     }
     my $out = q{ } x $indent;
-    for (my $c=0; $c<=$#{$table->{data}->[$r]}; $c++ ) {
-        if (defined $table->{data}->[$r][$c]) {
-            $out .= sprintf "%*s", $widths[$c], $table->{data}->[$r][$c];
+    for (my $c=0; $c<=$#{$Table->{data}->[$r]}; $c++ ) {
+        if (defined $Table->{data}->[$r][$c]) {
+            $out .= sprintf "%*s", $widths[$c], $Table->{data}->[$r][$c];
         }
         $out .=  $separator;
     }
@@ -195,38 +195,34 @@ for (my $r=0; $r<$table->{rows}; $r++ ) {
     print $out, "\n";
 }
 
-push @time_messages, sprintf "Total: %d ms\n", int(0.5+1000*tv_interval($start_time));
+push @time_messages, sprintf "Total: %d ms\n", 0.5+1000*tv_interval($start_time);
 print @time_messages if $DEBUG;
 exit;
 
 sub set_output_form {
-    my ($tab, $form_name) = @_;
+    my $form_name = shift;
     given($form_name) {
         when("tex")   { $separator = ' & '; $eol_marker = '\\cr' }
         when("latex") { $separator = ' & '; $eol_marker = '\\\\' }
         when("debug") { $separator = ' ! '; $eol_marker = '<<'   }
         default       { $separator = q{  }; $eol_marker = q{}    }
     }
-    return $tab;
 }
 
 sub transpose {
-    my ($tab) = @_;
     my @transposed_tab;
-    for my $row (@{$tab->{data}}) {
-        for my $i (0 .. $tab->{cols}-1) {
+    for my $row (@{$Table->{data}}) {
+        for my $i (0 .. $Table->{cols}-1) {
             push(@{$transposed_tab[$i]}, $row->[$i] );
         }
     } 
-    $tab->{data} = \@transposed_tab;
-    @$tab{'rows','cols'} = @$tab{'cols','rows'}; 
-
-    return $tab;
+    $Table->{data} = \@transposed_tab;
+    @$Table{'rows','cols'} = @$Table{'cols','rows'}; 
 }
 
 # Sort by column.  Create an extra temp col with "arr" for fancy sorting.
 sub sort_rows_by_column {
-    my ($tab, $col) = @_;
+    my $col = shift;
 
     my $reverse = 0;
     given($col) {
@@ -234,12 +230,12 @@ sub sort_rows_by_column {
         when (/^[a-z]$/) { $col = ord($col)-ord('a') }
         when (/^[A-Z]$/) { $col = ord($col)-ord('A'); $reverse++ }
         when (/^\d+$/)   { $col -= 1 } # 0 indexed
-        when (/^-\d+$/)  { $col = $table->{cols}+1+$col }
+        when (/^-\d+$/)  { $col = $Table->{cols}+1+$col }
         default          { $col = 0 }
     }
    
     # check bounds 
-    $col = $col >= $tab->{cols} ? $tab->{cols}-1
+    $col = $col >= $Table->{cols} ? $Table->{cols}-1
          : $col <  0            ? 0
          :                        $col;
     
@@ -248,17 +244,15 @@ sub sort_rows_by_column {
     if ($reverse) {
         @sorted = map  { $_->[0] }
                   sort { $b->[1] <=> $a->[1] || $b->[2] cmp $a->[2] } 
-                  map  { [$_, as_number_reversed($_->[$col]), uc($_->[$col])] } @{$tab->{data}};
+                  map  { [$_, as_number_reversed($_->[$col]), uc($_->[$col])] } @{$Table->{data}};
     }
     else {
         @sorted = map  { $_->[0] }
                   sort { $a->[1] <=> $b->[1] || $a->[2] cmp $b->[2] } 
-                  map  { [$_, as_number($_->[$col]), uc($_->[$col])] } @{$tab->{data}};
+                  map  { [$_, as_number($_->[$col]), uc($_->[$col])] } @{$Table->{data}};
     }
 
-    $tab->{data} = \@sorted;
-    return $tab;
-    
+    $Table->{data} = \@sorted;
 }
 
 sub as_number {
@@ -277,19 +271,17 @@ sub as_number_reversed {
 
 sub add_col_labels {
     # add a row of labels for each column
-    my ($tab) = @_;
     my $label = 'a';
     my @labels = ();
-    for (1..$tab->{cols}) {
+    for (1..$Table->{cols}) {
         push @labels, $label++;
     }
-    $tab->{rows} = unshift @{$tab->{data}}, [ @labels ];
-    return $tab;
+    $Table->{rows} = unshift @{$Table->{data}}, [ @labels ];
 }
 
 sub add_totals {
     # Add values of function to bottom of cols
-    my ($tab, $expr) = @_;
+    my $expr = shift;
     given($expr) {
         when (undef) { $expr = 'sum' }
         when ("var") { $expr = 'variance' }
@@ -299,10 +291,10 @@ sub add_totals {
     my @new_stats_row = ();
     my $stat = Statistics::Descriptive::Full->new();
 
-    for (my $c = 0; $c < $tab->{cols}; $c++ ) {
+    for (my $c = 0; $c < $Table->{cols}; $c++ ) {
         $stat->clear();
-        for (my $r = 0; $r < $tab->{rows}; $r++ ) {
-            my $s = $tab->{data}->[$r][$c];
+        for (my $r = 0; $r < $Table->{rows}; $r++ ) {
+            my $s = $Table->{data}->[$r][$c];
             if (defined $s && $s =~ $Number_pattern) {
                 $stat->add_data($s);
             }
@@ -319,69 +311,66 @@ sub add_totals {
 
         push @new_stats_row, $value;
     }
-    push @{$tab->{data}}, [ @new_stats_row ];
-    $tab->{rows}++;
-    return $tab
+    push @{$Table->{data}}, [ @new_stats_row ];
+    $Table->{rows}++;
 }
 
 sub append_new_rows {
-    my ($tab, $sequence) = @_;
+    my $sequence = shift;
     $sequence =~ s/:/../xims;
     for my $n (eval $sequence ) {
-        push @{$tab->{data}}, [ ($n) ];
-        $tab->{rows}++;
+        push @{$Table->{data}}, [ ($n) ];
+        $Table->{rows}++;
     }
-    $tab->{cols}++;
-    return $tab
+    $Table->{cols} = max(1, $Table->{cols});
 }
 
 sub reshape_table {
-    my ($tab, $direction) = @_;
+    my $direction = shift;
     
-    return $tab if $tab->{cols}<3; # do nothing on thin tables
+    return if $Table->{cols}<3; # do nothing on thin tables
     
     given($direction) {
-        when ("long") { return make_long_table($tab) }
-        when ("wide") { return make_wide_table($tab) }
+        when ("long") { make_long_table() }
+        when ("wide") { make_wide_table() }
         default {
-            if ($tab->{cols}==3) { return make_wide_table($tab) } 
-            return make_long_table($tab)
+            if ($Table->{cols}==3) { 
+                make_wide_table() 
+            } 
+            else {
+                make_long_table()
+            }
         }
     }
-
-    return $tab;
 }
 
 sub make_long_table {
-    my ($tab) = @_;
     
     my @long_tab = ();
-    my $header_row = shift @{$tab->{data}};
+    my $header_row = shift @{$Table->{data}};
 
     push @long_tab, [ ($header_row->[0], 'Key', 'Value') ];
 
-    for my $row ( @{$tab->{data}} ) {
+    for my $row ( @{$Table->{data}} ) {
         my $group_value = $row->[0];
         for my $i (1..(@$row-1) ) {
             push @long_tab, [ ( $group_value, $header_row->[$i], $row->[$i] ) ]; 
         }
     }
 
-    $tab->{data} = \@long_tab;
-    $tab->{rows} = scalar @long_tab;
-    $tab->{cols} = 3;
-    return $tab;
+    $Table->{data} = \@long_tab;
+    $Table->{rows} = scalar @long_tab;
+    $Table->{cols} = 3;
 }
 
 sub make_wide_table {
-    my ($tab) = @_;
 
-    my $header_row = shift @{$tab->{data}};
+    my $header_row = shift @{$Table->{data}};
 
     my %values = ();
     my @keys = ();
     my %seen = ();
-    for my $row ( @{$tab->{data}} ) {
+    for my $row ( @{$Table->{data}} ) {
         my ($x, $y, $value) = @$row;
         $values{$x}{$y} = $value;
         push @keys, $y unless $seen{$y}++;
@@ -397,27 +386,25 @@ sub make_wide_table {
         push @wide_tab, [ @row ];
     }
 
-    $tab->{data} = \@wide_tab;
-    $tab->{rows} = scalar @wide_tab;
-    $tab->{cols} = 1 + scalar @keys;
-    return $tab;
-
+    $Table->{data} = \@wide_tab;
+    $Table->{rows} = scalar @wide_tab;
+    $Table->{cols} = 1 + scalar @keys;
 }
 
 
 sub round_cols {
-    my ($tab, $dp_string) = @_;
+    my $dp_string = shift;
 
     # no-op unless we have a string of numbers
-    return $tab unless defined $dp_string && $dp_string =~ m{\A \d+ \Z}xims;
+    return unless defined $dp_string && $dp_string =~ m{\A \d+ \Z}xims;
 
     # extend short string by repeating last digit
     my $ldp = length($dp_string);
-    if ($ldp < $tab->{cols}) {
-        $dp_string .= substr($dp_string, -1) x ($tab->{cols}-$ldp);
+    if ($ldp < $Table->{cols}) {
+        $dp_string .= substr($dp_string, -1) x ($Table->{cols}-$ldp);
     }
 
-    for my $row (@{$tab->{data}}) {
+    for my $row (@{$Table->{data}}) {
         my $i = 0;
         for my $cell (@{$row}) {
             my $dp = substr $dp_string, $i++, 1;
@@ -430,49 +417,51 @@ sub round_cols {
             }
         }
     }
-    return $tab;
 }
 
 sub arrange_cols {
-    my ($tab, $permutation) = @_;
-    return $tab unless $permutation;
+    my $permutation = shift;
+    return unless $permutation;
     
-    for (my $r = 0; $r < $tab->{rows}; $r++ ) {
-        my $new;
+    my %cumulative_sum_of = ();
+    for (my $r = 0; $r < $Table->{rows}; $r++ ) {
+        my $new_row_ref;
         my %value_for = ();
-        if ($permutation =~ /\{/) {
-            my $key = 'a';
-            for (my $c=0; $c<$tab->{cols}; $c++ ) {
-                my $value = $tab->{data}->[$r]->[$c];
-                given($value) {
-                    when (/$Number_pattern/ && $value<0 ) { $value = "($value)" }
-                    when (/$Date_pattern/)                { $value = "'$value'" }          
-                }
-                $value_for{$key++} = $value;
+        my $key = 'a';
+        for (my $c=0; $c<$Table->{cols}; $c++ ) {
+            my $value = $Table->{data}->[$r]->[$c] || 0;
+            $cumulative_sum_of{$key} += $value if $value =~ m{$Number_pattern};
+            given($value) {
+                when (/$Number_pattern/ && $value<0 ) { $value = "($value)" }
+                when (/$Date_pattern/)                { $value = "'$value'" }          
             }
+            $value_for{$key} = $value;
+            $key++;
         }
-        for my $m ( $permutation =~ m{[a-z1-9#?]|\{.*?\}}gxmso ) {
+        for my $m ( $permutation =~ m{[a-zA-Z1-9.?\$]|\{.*?\}}gxmso ) {
             my $value;
             given($m) {
-                when (/^[a-z]$/) { $value = $tab->{data}->[$r]->[ord($m)-ord('a')] }
-                when (/^[1-9]$/) { $value = $tab->{data}->[$r]->[$m-1] }
-                when (q{#})      { $value = $r }
+                when (/^[a-z]$/) { $value = eval $value_for{$m} }
+                when (/^[A-Z]$/) { $value = $cumulative_sum_of{lc $m} }
+                when (/^[1-9]$/) { $value = $Table->{data}->[$r]->[$m-1] }
+                when (q{.})      { $value = $r+1 }
+                when (q{$})      { $value = $Table->{rows} }
                 when (q{?})      { $value = rand()-0.5 }
                 default {
                     # strip {} from expr
                     $m =~ s/^\{//; $m =~ s/\}$//;
                     # substitute cell values (and don't bother checking for out of range letters)
                     $m =~ s/\b([a-z])\b/$value_for{$1}/g; 
+                    $m =~ s/\b([A-Z])\b/$cumulative_sum_of{lc $1}/g;
                     # evaluate & replace answer with expression on error
                     $value = eval $m; $value = $m if $@;
                 }
             }
-            push @$new, $value;
+            push @$new_row_ref, $value;
         }
-        $tab->{data}->[$r] = $new;
+        $Table->{data}->[$r] = $new_row_ref;
     }
-    $tab->{cols} = scalar @{$tab->{data}->[0]};
-    return $tab;
+    $Table->{cols} = scalar @{$Table->{data}->[0]};
 }
 
 # Day of the week from base
@@ -703,10 +692,11 @@ Non-numerical entries in a column are simply ignored.
 
 C<sort> sorts the table on the given column.  "a" is the first, "b" the second, etc.
 If you use upper case letters, "A", "B", etc the sort direction is reversed.
+An index beyond the last column is automatically adjusted so "sort z" sorts on the last column
+assuming you have fewer than 26 columns).
 
 You can also use numbers, so "sort 2" sorts on the second column, while
-"sort 99" will sort on the last one (assuming there are fewer than 100 columns).
-Like perl index addressing "sort -1" means sort on the last column, "sort -2" last but one etc.
+like perl index addressing, "sort -1" means sort on the last column, "sort -2" last but one etc.
 NB *unlike* perl index addressing, "sort 1" sorts the first column not the second. 
 (but "sort 0" also sorts on the first column...).  Because sorting is stable in perl, then
 if you want to sort on column b then column a, you can do "sort a sort b" to get the desired
@@ -745,7 +735,7 @@ valid verb.  In this case (as similar ones) just put a pair of empty braces
 on the end, like so "arr add{}".
 
 Besides letters to identify column values you can use "?" to insert a random number,
-and "#" to insert the row number.
+and "." to insert the current row number and "$" to insert the total number of rows.
 
 You can also insert arbitrary calculated columns by putting an expression in curly braces.
 
@@ -766,11 +756,28 @@ cell value and then the resulting expression is evaluated. You can use any norma
 sin, cos, atan2, sqrt, log, exp, int, abs, and so on.  You can also use min, max (from List::Util)
 and floor and ceil from POSIX.  
 
+Note that you should use lower case letters only to refer to each column value.  If you use an upper case 
+letter, "A", "B", etc, it will be replaced by the cumulative sum of the corresponding column, in other
+words the sum of the values in the column from the top of the table to the current row. So given
+
+    First   1
+    Second  2
+    Third   3
+
+"C<arr abB>" gives you, 
+
+    First   1  1 
+    Second  2  3 
+    Third   3  6 
+
+Note that the upper case letters also work inside a {curly brace} expression, so you can include them in a 
+normal expression.
+
 There are also some very simple date routines included.  C<base> returns the number of days
 since 1 Jan in the year 1 (assuming the Gregorian calendar extended backwards).  The argument 
 should be blank for today, or in the form "yyyy-mm-dd".  C<date> does the opposite: given
 a number that represents the number of days since the year dot, it returns the date in "yyyy-mm-dd" form.
-There's also C<dow> which takes a base number and returns the day of the week, as a three letter string.
+There's also C<dow> which takes a date and returns the day of the week, as a three letter string.
 
 So given a table with a column of dates, like this
 
@@ -779,13 +786,19 @@ So given a table with a column of dates, like this
     2011-03-19  
     2011-07-05  
 
-the command "arr a{dow(base(a))}" creates this
+the command "arr a{dow(a)}" creates this
 
     2011-01-17  Mon 
     2011-02-23  Wed 
-    2011-03-19  Sun 
-    2011-07-05  Wed 
+    2011-03-19  Sat 
+    2011-07-05  Tue 
 
+Note: dates will also be recognized in the form yyyymmdd or yyyy/mm/dd, etc.  The exact matching expression is
+
+    \A([12]\d\d\d)\D?([01]\d)\D?([0123]\d)\Z
+
+so you must use 4 digit years, but you can use any non-digit as a separator.  It also means
+that you can use dates like 2011-12-32.  You'll find that date(base('2011-12-32')) returns '2012-01-01'.
 
 =item dp [nnnnn...] - round numbers to n decimal places
 
@@ -897,7 +910,7 @@ external filter.
 
 =head1 INCOMPATIBILITIES
 
-Largely *because* it works as an external filter, table.pl is not very "Vim-like", so died-in-the-wool
+Largely *because* it works as an external filter, table.pl is not very "Vim-like", so dyed-in-the-wool
 Vim users may prefer other facilities for playing with columns of data. 
 
 =head1 BUGS AND LIMITATIONS
@@ -906,7 +919,7 @@ Probably plenty, because I've not done very rigorous testing.
 
 =head1 AUTHOR
 
-Toby Thurston -- 10 Oct 2011 
+Toby Thurston -- 11 Nov 2011 
 
 =head1 LICENSE AND COPYRIGHT
 

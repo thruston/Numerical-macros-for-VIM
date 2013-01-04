@@ -19,10 +19,12 @@
 #        reshape wide | long   reshape table (for R etc)
 #        make tex | latex | plain   output in tex etc form
 #        label           label columns with letters
+#        wrap n          wrap columns in long table n times (default 2)
+#        unwrap n        unwrap cols in wide table 
 #
 # For full documentaion read (or better still extract) the POD at the end
 #
-# Toby Thurston -- 11 Nov 2011 
+# Toby Thurston -- 04 Jan 2013 
 
 use strict;
 use warnings;
@@ -31,9 +33,6 @@ use feature "switch";
 use Statistics::Descriptive;    # used for add functions
 use List::Util qw(min max sum);   
 use POSIX      qw(floor ceil);
-use Time::HiRes qw( gettimeofday tv_interval );
-
-my $DEBUG = 0; 
 
 # following Cowlishaw, TRL p.136
 #                     sign?    mantissa------>     exponent? 
@@ -53,6 +52,8 @@ my %Action_for = (
     dp      => \&round_cols,
     label   => \&add_col_labels,
     reshape => \&reshape_table,
+    wrap    => \&wrap_table,
+    unwrap  => \&unwrap_table,
 );
 
 # deal with the command line
@@ -81,9 +82,6 @@ else {
 my $indent = 0;
 my $eol_marker = q{};
 
-my $start_time = [ gettimeofday ];
-my @time_messages = ();
-
 # read the data from stdin
 my @input_lines = <>;
 
@@ -100,8 +98,6 @@ if (@input_lines) {
         $separator = ' & ';
     }
 }
-
-push @time_messages, sprintf "Read: %d ms\n", 0.5+1000*tv_interval($start_time);
 
 # split the input lines into cells in $Table->{data}
 my $Table = { rows => 0, cols => 0 };
@@ -121,13 +117,12 @@ for (@input_lines) {
     $Table->{rows}++;   
     $Table->{cols} = max($Table->{cols},scalar @cells);
 }
-push @time_messages, sprintf "Split: %d ms\n", 0.5+1000*tv_interval($start_time);
 
 # work through the list of verbs
 while (@agenda) {
     my $verb   = lc shift @agenda;
     my $option = @agenda ? shift @agenda : undef;
-    if ( exists $Action_for{lc $option}) {
+    if ( defined $option && exists $Action_for{lc $option}) {
         unshift @agenda, $option;
         $option = undef;
     }
@@ -135,11 +130,6 @@ while (@agenda) {
         $Action_for{$verb}->($option)
     }
 }
-
-push @time_messages, sprintf "Verbs: %d ms\n", 0.5+1000*tv_interval($start_time);
-
-# FIXME check to see if header is all text and one cell short
-# then shove it over to the right by one (like a data.frame for R)
 
 # work out the widths and alignments
 my @widths = (0) x $Table->{cols};
@@ -162,8 +152,6 @@ my $table_width = sum(0,@widths) + length($separator) * ($Table->{cols}-1);
 for (my $c=0; $c<$Table->{cols}; $c++ ) {
     $widths[$c] *= -1 if $aligns[$c] < 0;
 }
-
-push @time_messages, sprintf "Widths: %d ms\n", 0.5+1000*tv_interval($start_time);
 
 # print the table to stdout
 for (my $r=0; $r<$Table->{rows}; $r++ ) {
@@ -195,8 +183,6 @@ for (my $r=0; $r<$Table->{rows}; $r++ ) {
     print $out, "\n";
 }
 
-push @time_messages, sprintf "Total: %d ms\n", 0.5+1000*tv_interval($start_time);
-print @time_messages if $DEBUG;
 exit;
 
 sub set_output_form {
@@ -244,13 +230,13 @@ sub sort_rows_by_column {
     if ($reverse) {
         @sorted = map  { $_->[0] }
                   sort { $b->[1] <=> $a->[1] || $b->[2] cmp $a->[2] } 
-                  map  { [$_, as_number_reversed($_->[$col]), uc($_->[$col])] } @{$Table->{data}};
+                  map  { [$_, as_number_reversed($_->[$col]), uc($_->[$col]||"")] } @{$Table->{data}};
     }
     else {
         @sorted = map  { $_->[0] }
                   sort { $a->[1] <=> $b->[1] || $a->[2] cmp $b->[2] } 
-                  map  { [$_, as_number($_->[$col]), uc($_->[$col])] } @{$Table->{data}};
-    }
+                  map  { [$_, as_number($_->[$col]), uc($_->[$col]||"")] }  @{$Table->{data}};
+    }                                   # or "" to allow for blank cells...
 
     $Table->{data} = \@sorted;
 }
@@ -426,14 +412,14 @@ sub arrange_cols {
     my %cumulative_sum_of = ();
     for (my $r = 0; $r < $Table->{rows}; $r++ ) {
         my $new_row_ref;
-        my %value_for = ();
-        my $key = 'a';
+        my %value_for = ();  # build a hash of all the values
+        my $key = 'a';       # indexed by column letter
         for (my $c=0; $c<$Table->{cols}; $c++ ) {
             my $value = $Table->{data}->[$r]->[$c] || 0;
             $cumulative_sum_of{$key} += $value if $value =~ m{$Number_pattern};
             given($value) {
-                when (/$Number_pattern/ && $value<0 ) { $value = "($value)" }
-                when (/$Date_pattern/)                { $value = "'$value'" }          
+                when ( /$Number_pattern/ && $value<0 ) { $value = "($value)" }
+                when (!/$Number_pattern/)              { $value = "'$value'" }          
             }
             $value_for{$key} = $value;
             $key++;
@@ -441,7 +427,7 @@ sub arrange_cols {
         for my $m ( $permutation =~ m{[a-zA-Z1-9.?\$]|\{.*?\}}gxmso ) {
             my $value;
             given($m) {
-                when (/^[a-z]$/) { $value = eval $value_for{$m} }
+                when (/^[a-z]$/) { $value = $Table->{data}->[$r]->[ord($m)-ord('a')] }
                 when (/^[A-Z]$/) { $value = $cumulative_sum_of{lc $m} }
                 when (/^[1-9]$/) { $value = $Table->{data}->[$r]->[$m-1] }
                 when (q{.})      { $value = $r+1 }
@@ -463,6 +449,60 @@ sub arrange_cols {
     }
     $Table->{cols} = scalar @{$Table->{data}->[0]};
 }
+
+sub wrap_table {
+    my $n = shift || 2;
+    return unless $n > 1;
+    return unless $n < $Table->{rows}*$Table->{cols};
+    
+    my @wide_tab = ();
+    my $new_cols = $Table->{cols} * $n;
+    my $new_rows = ceil($Table->{rows}/$n);
+  
+    for (my $r=0; $r<$new_rows; $r++ ) {
+        my @new_row = ();
+        for (my $i=0; $i<$n; $i++ ) {
+            for (my $c=0; $c<$Table->{cols}; $c++ ) {
+                push @new_row, $Table->{data}->[$r+$i*$new_rows][$c];
+            }
+        }
+        push @wide_tab, [ @new_row ];
+    }
+
+    $Table->{data} = \@wide_tab;
+    $Table->{rows} = $new_rows; 
+    $Table->{cols} = $new_cols;
+    
+}
+
+sub unwrap_table {
+    my $n = shift || 2;
+    return unless $n > 0;
+    return unless $n < $Table->{cols};
+
+    my @thin_tab = ();
+    my $new_cols = $n;
+    my $new_rows = ceil($Table->{rows}*$Table->{cols}/$n);
+
+    my $block = $n*$Table->{rows};
+
+    for (my $r=0; $r<$new_rows; $r++ ) {
+        my @new_row = ();
+        for (my $c=0; $c<$new_cols; $c++ ) {
+            my $cell_number = $r*$new_cols+$c;
+            my $old_r = int ($cell_number % $block)/$new_cols;
+            my $old_c = int ($cell_number / $block)*$new_cols + $cell_number % $new_cols;
+            push @new_row, $Table->{data}->[$old_r][$old_c];
+        }
+        push @thin_tab, [ @new_row ];
+    }
+
+    $Table->{data} = \@thin_tab;
+    $Table->{rows} = $new_rows; 
+    $Table->{cols} = $new_cols;
+    
+}
+
 
 # Day of the week from base
 sub dow {
@@ -499,7 +539,7 @@ sub base {
     return $base;
 }
 
-# Gregorian-ymd:  returns "y m d" from a base number according
+# Gregorian-ymd:  returns "y-m-d" from a base number according
 # to normal Gregorian calendar rules.  Like date('s',base,'b')
 # but allows for negative base numbers, and returns y m d as a
 # list.
@@ -526,6 +566,13 @@ sub date {
         }
     }
     return sprintf "%d-%02d-%02d", $y, $m, $d;
+}
+
+# returns 01-12 from January-December
+sub month_number {
+    my ($s) = @_;
+    my $m = index("JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC",uc(substr($s,0,3)));
+    return sprintf("%02d",$m/4+1)
 }
 
 __END__

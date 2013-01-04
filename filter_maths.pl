@@ -37,6 +37,7 @@ while ( <> ) {
     $expression =~ s{π}                      {bignum::PI()}gixmso  ; 
     $expression =~ s{\\pi}                    {bignum::PI()}gismxo  ; 
     $expression =~ s{×}                      {*}gismxo             ; 
+    $expression =~ s{·}                      {*}gismxo             ; 
     $expression =~ s{÷}                      {/}gismxo             ; 
     $expression =~ s{\\times}                 {*}gismxo             ; 
     $expression =~ s{\\over}                  {/}gismxo             ; 

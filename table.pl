@@ -19,12 +19,11 @@
 #        reshape wide | long   reshape table (for R etc)
 #        make tex | latex | plain   output in tex etc form
 #        label           label columns with letters
-#        wrap n          wrap columns in long table n times (default 2)
-#        unwrap n        unwrap cols in wide table 
+#        wrap n          wrap columns in long table n times (default=2)
+#        unwrap n        unwrap cols in wide table (default=half number of cols) 
 #
 # For full documentaion read (or better still extract) the POD at the end
-#
-# Toby Thurston -- 04 Jan 2013 
+
 
 use strict;
 use warnings;
@@ -476,7 +475,7 @@ sub wrap_table {
 }
 
 sub unwrap_table {
-    my $n = shift || 2;
+    my $n = shift || ceil($Table->{cols}/2);
     return unless $n > 0;
     return unless $n < $Table->{cols};
 
@@ -847,6 +846,9 @@ Note: dates will also be recognized in the form yyyymmdd or yyyy/mm/dd, etc.  Th
 so you must use 4 digit years, but you can use any non-digit as a separator.  It also means
 that you can use dates like 2011-12-32.  You'll find that date(base('2011-12-32')) returns '2012-01-01'.
 
+There's also a C<month_number> function that takes a string that looks like a month and returns an appropriate number.
+
+
 =item dp [nnnnn...] - round numbers to n decimal places
 
 As delivered table.pl calculates with 12 decimal places, so you might need to round your answers a bit.
@@ -902,6 +904,35 @@ With this input, "reshape wide" gives you this
 
 Notice that parts of the headings may get lost in transposition. 
 
+=item wrap [n] | unwrap [n]
+
+Another way to reshape a table.  Given
+
+    East  Q1  1200 
+    East  Q2  1100 
+    East  Q3  1500 
+    East  Q4  2200 
+    West  Q1  2200 
+    West  Q2  2500 
+    West  Q3  1990 
+    West  Q4  2600 
+
+as input, "wrap" gives you 
+
+    East  Q1  1200  West  Q1  2200 
+    East  Q2  1100  West  Q2  2500 
+    East  Q3  1500  West  Q3  1990 
+    East  Q4  2200  West  Q4  2600 
+
+while "wrap 3" gives
+
+    East  Q1  1200  East  Q4  2200  West  Q3  1990 
+    East  Q2  1100  West  Q1  2200  West  Q4  2600 
+    East  Q3  1500  West  Q2  2500       
+
+"unwrap" does the opposite - the option is the number of columns you want in the new output, and defaults
+to half the number of columns in the input.
+
 =item label - add alphabetic labels to all the columns
 
 C<label> simply adds an alphabetic label at the top of the 
@@ -925,7 +956,8 @@ To convert a plain table to TeX format use "make tex".  If you already have
 a TeX table then C<table.pl> automatically spots the TeX delimiters "&" and "\cr",
 and puts them back in when it formats the output. Everything else works as described above.
 If you convert from plain to TeX format, then any horizontal rules will be converted 
-to the appropriate bit of TeX input to get a neat output rule.    
+to the appropriate bit of TeX input to get a neat output rule.    No attempt is made to create 
+a preamble for you.
 
 =head1 REQUIRED ARGUMENTS
 
@@ -938,7 +970,8 @@ See the detailed description of the verbs and options in the L<DESCRIPTION> sect
 =head1 DIAGNOSTICS
 
 Some errors will generate extra lines in the output, explaining what went wrong. 
-You can always get rid of them and back to a known postion by using the editor undo command. 
+Bad errors may generate only lines of errors instead of your table data. 
+You can always get rid of them and back to a known postion by using the editor's C<undo> command. 
 
 =head1 EXIT STATUS
 
@@ -966,7 +999,7 @@ Probably plenty, because I've not done very rigorous testing.
 
 =head1 AUTHOR
 
-Toby Thurston -- 11 Nov 2011 
+Toby Thurston -- 06 Jan 2013 
 
 =head1 LICENSE AND COPYRIGHT
 

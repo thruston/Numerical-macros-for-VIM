@@ -1,12 +1,13 @@
 #!/usr/bin/perl 
-# Toby Thurston --- 2011-08-23
+# Toby Thurston -- 07 Jun 2013 
 #
 # Filter maths lines for Vim 
 
 use strict;
 use warnings;
-use bignum  ('a', 20 );         
 use DateTime;
+use Math::Complex qw/cplx Re Im/;
+use POSIX qw/floor/;
 
 my $Number_pattern = qr{[-+]?                # optional sign
                         (?:\d+\.\d*|\.?\d+)  # mantissa [following Cowlishaw, TRL p.136]
@@ -34,37 +35,42 @@ while ( <> ) {
     my $original_expression = $expression; 
 
     # Syntactic sugar... 
-    $expression =~ s{π}                      {bignum::PI()}gixmso  ; 
-    $expression =~ s{\\pi}                    {bignum::PI()}gismxo  ; 
-    $expression =~ s{×}                      {*}gismxo             ; 
-    $expression =~ s{·}                      {*}gismxo             ; 
-    $expression =~ s{÷}                      {/}gismxo             ; 
-    $expression =~ s{\\times}                 {*}gismxo             ; 
-    $expression =~ s{\\over}                  {/}gismxo             ; 
-    $expression =~ s{e\^($Number_pattern)}    {exp($1)}gismxo       ; 
-    $expression =~ s{e\*\*($Number_pattern)}  {exp($1)}gismxo       ; 
-    $expression =~ s{e\^}                     {exp}gismxo           ; 
-    $expression =~ s{\^}                      {**}gismxo            ; 
-    $expression =~ s{\\left\(}                {(}gismxo             ; 
-    $expression =~ s{\\right\)}               {)}gismxo             ; 
-    $expression =~ s{\\smf12}                 {.5*}gismxo           ; 
-    $expression =~ s{\\}                      {}gismxo              ; 
-    $expression =~ s{\{}                      {(}gismxo             ; 
-    $expression =~ s{\}}                      {)}gismxo             ; 
-    $expression =~ s{!}                       {->bfac()}gisxmo      ; 
+    $expression =~ s{π}                                       {bignum::PI()}gixmso  ; 
+    $expression =~ s{\\pi}                                     {bignum::PI()}gismxo  ; 
+    $expression =~ s{×}                                       {*}gismxo             ; 
+    $expression =~ s{·}                                       {*}gismxo             ; 
+    $expression =~ s{÷}                                       {/}gismxo             ; 
+    $expression =~ s{\\times}                                  {*}gismxo             ; 
+    $expression =~ s{\\over}                                   {/}gismxo             ; 
+    $expression =~ s{√($Number_pattern)}                       {sqrt($1)}gismxo       ; 
+    $expression =~ s{e\^($Number_pattern)}                     {exp($1)}gismxo       ; 
+    $expression =~ s{e\*\*($Number_pattern)}                   {exp($1)}gismxo       ; 
+    $expression =~ s{e\^}                                      {exp}gismxo           ; 
+    $expression =~ s{\^}                                       {**}gismxo            ; 
+    $expression =~ s{\\left\(}                                 {(}gismxo             ; 
+    $expression =~ s{\\right\)}                                {)}gismxo             ; 
+    $expression =~ s{\\smf12}                                  {.5*}gismxo           ; 
+    $expression =~ s{\\}                                       {}gismxo              ; 
+    $expression =~ s{\{}                                       {(}gismxo             ; 
+    $expression =~ s{\}}                                       {)}gismxo             ; 
+    $expression =~ s{!}                                        {->bfac()}gisxmo      ; 
+    $expression =~ s{($Number_pattern)([-+]$Number_pattern)i}  {cplx($1,$2)}gisxmo   ; 
+    $expression =~ s{([-+]$Number_pattern)i}                   {cplx(0,$1)}gisxmo    ; 
+    $expression =~ s{\b-i\b}                                   {cplx(0,-1)}gisxmo    ; 
+    $expression =~ s{\bi\b}                                    {cplx(0,1)}gisxmo     ; 
+    $expression =~ s{\|(\S+?)\|}                {abs($1)}gisxmo    ; 
 
     my $ans = eval $expression; 
 
     if ($@) {
-        print "$original_line\n$expression <-- $@\n";
+        print "$original_line\n$expression <== $@\n";
         next;
     }
 
     if ($ans =~ m{\.}imsxo){        # strip trailing 0s from decimal fractions
         $ans =~ s{\.?0+\Z}{}xmiso;  # yuk!
     }
-
-
+ 
     print $prefix;
 
     if ($style eq 'tex') {
@@ -80,11 +86,24 @@ while ( <> ) {
         }
         else {
             print $original_expression;
-            my $rounded = sprintf "%.6f", $ans;
-            my $int     = int($ans);
-            print $ans == $int     ?  " = $int"
-                : $ans == $rounded ?  " = $ans"
-                :               " \\simeq $rounded";
+            if ('Math::Complex' eq ref $ans) {
+                my $x = Re($ans);
+                my $y = Im($ans);
+                if (is_whole($x) && is_whole($y)) {
+                    print " = $ans";
+                }
+                else {
+                    printf "\\simeq %g%+gi",floor($x*1e4+0.5)/1e4,floor($y*1e4+0.5)/1e4;
+                }
+            }
+            else {
+                if (is_whole($ans) || is_nice($ans)) {
+                    print " = $ans";
+                }
+                else {
+                    printf " \\simeq %.6g", $ans;
+                }
+            }
         }
     }
 
@@ -97,10 +116,21 @@ while ( <> ) {
 
 exit;
 
+sub is_whole {
+    my $n = shift;
+    return $n==floor($n+0.5);
+}
+
+sub is_nice {
+    my $n = shift;
+    return abs($n-floor($n*1e6+0.5)/1e6)<1e-12
+}
+
+
 sub today {
     my $delta = shift || 0;
     my $date = DateTime->today;
-    $date->add( days => $delta->numify );
+    $date->add( days => $delta );
     return $date->ymd;
 }
 
@@ -113,8 +143,16 @@ sub mean {
     return $sum/@_;
 }
 
-sub pi {
-    return bignum::PI()
-}
+#sub pi {
+#    return bignum::PI()
+#}
 
 __END__
+
+
+
+
+
+2013-06-07
+2013-07-10
+

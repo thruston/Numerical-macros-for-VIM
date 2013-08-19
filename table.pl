@@ -24,7 +24,6 @@
 #
 # For full documentaion read (or better still extract) the POD at the end
 
-
 use strict;
 use warnings;
 use feature "switch";

@@ -10,3 +10,4 @@ to get detailed guides to the perl tools, and pydoc for the python ones.
 Changes
 
 Toby Thurston -- 21 Oct 2011 - tightened up date matching regex for date routines
+Toby Thurston -- 06 Jan 2013 - new unwrap/wrap function in table.pl

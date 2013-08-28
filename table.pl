@@ -15,9 +15,9 @@
 #        sort col        sort by value of column, use UPPERCASE to reverse
 #        add function    add sum, mean, var, sd etc to foot of column
 #        arr col-list    rearrange/insert/delete cols and/or do calculations on column values.
-#        dp dp-list      round numbers is each col to specified decimal places
+#        dp dp-list      round numbers in each col to specified decimal places
 #        reshape wide | long   reshape table (for R etc)
-#        make tex | latex | plain   output in tex etc form
+#        make tex | latex | plain | csv   output in tex etc form
 #        label           label columns with letters
 #        wrap n          wrap columns in long table n times (default=2)
 #        unwrap n        unwrap cols in wide table (default=half number of cols) 
@@ -171,9 +171,10 @@ for (my $r=0; $r<$Table->{rows}; $r++ ) {
         }
     }
     my $out = q{ } x $indent;
-    for (my $c=0; $c<=$#{$Table->{data}->[$r]}; $c++ ) {
+    for (my $c=0; $c<$Table->{cols}; $c++ ) {
         if (defined $Table->{data}->[$r][$c]) {
-            $out .= sprintf "%*s", $widths[$c], $Table->{data}->[$r][$c];
+            my $wd = $separator eq q{,} ? length($Table->{data}->[$r][$c]) : $widths[$c];
+            $out .= sprintf "%*s", $wd, $Table->{data}->[$r][$c];
         }
         $out .=  $separator;
     }
@@ -188,6 +189,7 @@ sub set_output_form {
     given($form_name) {
         when("tex")   { $separator = ' & '; $eol_marker = '\\cr' }
         when("latex") { $separator = ' & '; $eol_marker = '\\\\' }
+        when("csv")   { $separator = q{,} ; $eol_marker = q{}    }
         when("debug") { $separator = ' ! '; $eol_marker = '<<'   }
         default       { $separator = q{  }; $eol_marker = q{}    }
     }
@@ -856,13 +858,17 @@ between 0 and 9 you want for each column.  There's no default, it just does noth
 if your string is too short the last digit is repeated as necessary.  So to round everything to a whole number
 do "dp 0".  To round the first col to 0, the second to 3 and the rest to 4 do "dp 034", and so on. 
 
-=item make [plain|tex|latex] - set the output format
+=item make [plain|tex|latex|csv] - set the output format
 
 C<make> sets the output format.   Normally this happens automagically, but if, for example, you want to separate
 your input data by single spaces, you might find it helpful to do ":Table 1 make plain" to line everything up
 with the default two spaces.   Or you might want explicitly to make a plain table into TeX format.
 
 Note that this only affects the rows, it won't magically generate the TeX or LaTeX table preamble.
+
+The CSV option should produce something that you can easily import into Excel or similar spreadsheets. 
+However beware that it's very simple: you need to ensure that there are no commas or quotes in the data.
+To get back from CSV form to plain form do C<Table , make plain>.
 
 =item reshape [long|wide] - expand or condense data tables for R
 

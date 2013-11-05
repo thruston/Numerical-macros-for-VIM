@@ -11,4 +11,4 @@ Changes
 
 Toby Thurston -- 21 Oct 2011 - tightened up date matching regex for date routines
 Toby Thurston -- 06 Jan 2013 - new unwrap/wrap function in table.pl
-Toby Thurston -- 05 Nov 2013 - proust + lumberjack are new Python inline calc
+Toby Thurston -- 05 Nov 2013 - proust is new Python inline calc

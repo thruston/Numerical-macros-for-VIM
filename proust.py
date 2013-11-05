@@ -31,6 +31,7 @@ def workout(s):
     s = s.replace(r'{', '(')
     s = s.replace(r'}', ')')
     s = s.replace(r'\\','')
+    s = re.sub('(\d)([a-z\(])',r'\1*\2',s)
     return eval(s)
 
 def find_expression(line,col):
@@ -124,6 +125,6 @@ line = vim.current.line
 (prefix, expression, suffix) = find_expression(line,col)
 answer = evaluate_expression(expression)
 vim.current.line = prefix+answer+suffix
-vim.current.window.cursor = (row,len(prefix+answer)) 
+vim.current.window.cursor = (row,1+len(prefix+answer)) 
 
 # Normal 4

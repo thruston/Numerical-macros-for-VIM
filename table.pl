@@ -12,7 +12,7 @@
 # Normally just '  ' but in tex: & and \cr; in latex & and \\; etc...
 #
 # Verbs: xp              transpose rows and cells
-#        sort col        sort by value of column, use UPPERCASE to reverse
+#        sort col-list   sort by value of columns in the order given, use UPPERCASE to reverse
 #        add function    add sum, mean, var, sd etc to foot of column
 #        arr col-list    rearrange/insert/delete cols and/or do calculations on column values.
 #        dp dp-list      round numbers in each col to specified decimal places
@@ -42,7 +42,7 @@ my $Hrule_pattern    = qr{\A -+ \Z}ixmso; # just a line of --------------
 
 my %Action_for = (
     xp      => \&transpose,
-    sort    => \&sort_rows_by_column,
+    sort    => \&sort_rows,
     add     => \&add_totals,
     arr     => \&arrange_cols,
     make    => \&set_output_form,
@@ -173,8 +173,12 @@ for (my $r=0; $r<$Table->{rows}; $r++ ) {
     my $out = q{ } x $indent;
     for (my $c=0; $c<$Table->{cols}; $c++ ) {
         if (defined $Table->{data}->[$r][$c]) {
-            my $wd = $separator eq q{,} ? length($Table->{data}->[$r][$c]) : $widths[$c];
-            $out .= sprintf "%*s", $wd, $Table->{data}->[$r][$c];
+            my $val = $Table->{data}->[$r][$c];
+            my $wd = $separator eq q{,} ? length($val) : $widths[$c];
+            if ( $separator eq q{,} && index($val,$separator)>0) {
+                $val = q{"} . $val . q{"};
+            }
+            $out .= sprintf "%*s", $wd, $val;
         }
         $out .=  $separator;
     }
@@ -207,6 +211,19 @@ sub transpose {
 }
 
 # Sort by column.  Create an extra temp col with "arr" for fancy sorting.
+sub sort_rows {
+    my $col_list = shift; 
+    if ($col_list =~ m{[a-zA-Z]+}xmsio) {
+        for my $c (reverse split //, $col_list) {
+            sort_rows_by_column($c)
+        }
+    }
+    else {
+        sort_rows_by_column($col_list) 
+    }
+}
+
+
 sub sort_rows_by_column {
     my $col = shift;
 

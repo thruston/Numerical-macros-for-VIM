@@ -1004,7 +1004,7 @@ Probably plenty, because I've not done very rigorous testing.
 
 =head1 AUTHOR
 
-Toby Thurston -- 06 Jan 2013 
+Toby Thurston -- 28 Aug 2013 
 
 =head1 LICENSE AND COPYRIGHT
 

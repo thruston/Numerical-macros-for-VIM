@@ -8,7 +8,7 @@ from math import sqrt, log, exp, sin, cos, tan, asin, acos, atan, hypot, pi, e
 import re
 
 def workout(s):
-    '''Do the arithmetic here, allowing for TeX input.
+    '''De-Texify the expression then call eval().
 
     >>> workout('1+1')
     2
@@ -20,6 +20,8 @@ def workout(s):
     259.1415926535898
     >>> workout(r'\\\\sqrt(3)')
     1.7320508075688772
+    >>> workout('3e^-3')
+    0.14936120510359185
 
     '''
 
@@ -36,8 +38,8 @@ def workout(s):
 
 def find_expression(line,col):
     '''Given a line and a cursor pos, return a tuple of str (prefix, expression, suffix).
-    Note the cursor position is 0 indexed.
 
+    Note that the cursor position is 0 indexed.
     Note trailing and leading blanks are preserved.
 
     >>> find_expression('',0)
@@ -91,6 +93,11 @@ def find_expression(line,col):
 
 def evaluate_expression(target):
     '''Check for terminal "signals" and call workout accordingly.
+    
+    If the expression ends in "=" then answer is "expr = answer".
+    If the expression ends in "\" then make the answer a fraction.
+    Otherwise just replace the expr with the answer.
+
     >>> evaluate_expression('3+4=')
     '3+4 = 7'
     >>> evaluate_expression(r'0.5\\\\')
@@ -117,14 +124,16 @@ def evaluate_expression(target):
     
     return '{0}'.format(workout(target))
 
-import vim
+try:
+    import vim
+    line = vim.current.line
+    (row,col) = vim.current.window.cursor
 
-line = vim.current.line
-(row,col) = vim.current.window.cursor
+    (prefix, expression, suffix) = find_expression(line,col)
+    answer = evaluate_expression(expression)
+    vim.current.line = prefix+answer+suffix
+    vim.current.window.cursor = (row,1+len(prefix+answer)) 
+except ImportError:
+    print 'NB. Vim module not imported, I assume you are running doctest...'
 
-(prefix, expression, suffix) = find_expression(line,col)
-answer = evaluate_expression(expression)
-vim.current.line = prefix+answer+suffix
-vim.current.window.cursor = (row,1+len(prefix+answer)) 
-
-# Normal 4
+# Normal 

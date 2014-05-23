@@ -50,6 +50,8 @@ my %Action_for = (
     dp      => \&round_cols,
     label   => \&add_col_labels,
     reshape => \&reshape_table,
+    reflow  => \&reshape_table,
+    flow    => \&reshape_table,
     wrap    => \&wrap_table,
     unwrap  => \&unwrap_table,
 );
@@ -67,7 +69,7 @@ if ($delim =~ /\A[1-9]\Z/xms) {
     $separator = q{ } x $delim; 
     $delim = qr/\s{$delim,}/xms;
 }
-elsif (exists $Action_for{lc $delim}) {
+elsif ($delim =~ /\A[a-z]{2,}\Z/xms) {
     unshift @agenda, $delim;
     $separator = q{  };
     $delim = qr/\s{2,}/xms;
@@ -127,6 +129,10 @@ while (@agenda) {
     if ( exists $Action_for{$verb} ) {
         $Action_for{$verb}->($option)
     }
+    else {
+        warn "> $verb is not defined.  Try one of:\n";
+        warn join " ", ">", keys %Action_for, "\n";
+    }    
 }
 
 # work out the widths and alignments
@@ -592,6 +598,16 @@ sub month_number {
     return sprintf("%02d",$m/4+1)
 }
 
+# return months since Jan 2000 from mmm-yy
+sub mondex {
+    my ($s) = @_;
+    my $m = month_number($s);
+    my $y = substr($s,4,2);
+    return 12*$y+($m-1)
+}
+
+
+
 __END__
 
 =head1 NAME 
@@ -885,7 +901,7 @@ Note that this only affects the rows, it won't magically generate the TeX or LaT
 
 The CSV option should produce something that you can easily import into Excel or similar spreadsheets. 
 However beware that it's very simple: you need to ensure that there are no commas or quotes in the data.
-To get back from CSV form to plain form do C<Table , make plain>.
+To get back from CSV form to plain form do C<Table , make plain>. (Provided there are no commas in your data).
 
 =item reshape [long|wide] - expand or condense data tables for R
 

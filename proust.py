@@ -4,11 +4,30 @@
 # Toby Thurston -- 05 Nov 2013 
 
 from __future__ import division
-from math import sqrt, log, exp, sin, cos, tan, asin, acos, atan, hypot, pi, e
+from math import sqrt, log, exp, sin, cos, tan, asin, acos, atan, hypot, pi, e, ceil, floor, factorial, fabs
 import re
+
+def choose(n, k):
+    '''A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
+
+    >>> choose(4,2)
+    6
+    >>> choose(2,4)
+    0
+    '''
+    if 0 <= k <= n:
+        ntok = 1
+        ktok = 1
+        for t in xrange(1, min(k, n - k) + 1):
+            ntok *= n
+            ktok *= t
+            n -= 1
+        return ntok // ktok
+    return 0
 
 def workout(s):
     '''De-Texify the expression then call eval().
+    Also spot units.
 
     >>> workout('1+1')
     2
@@ -22,19 +41,31 @@ def workout(s):
     1.7320508075688772
     >>> workout('3e^-3')
     0.14936120510359185
+    >>> workout('210mm-3in')
+    379.2755905509
 
     '''
 
     s = s.replace(r'\times','*')
     s = s.replace(r'\left(','(')
     s = s.replace(r'\right)',')')
-    s = re.sub(r'{(.*?)\\over(.*?)}', r'(\1/\2)', s)
+    s = re.sub(r'{(.*?)\\over(.*?)}', r'((\1)/(\2))', s)
+    s = re.sub(r'{(.*?)\\choose(.*?)}', r'choose(\1,\2)', s)
     s = s.replace(r'^','**')
     s = s.replace(r'{', '(')
     s = s.replace(r'}', ')')
-    s = s.replace(r'\\','')
-    s = re.sub('(\d)([a-z\(])',r'\1*\2',s)
-    return eval(s)
+    s = s.replace('\\','')
+    s = re.sub('(\d)!',r'factorial(\1)',s)
+    s = re.sub('([0-9\)])([a-z\(])',r'\1*\2',s)
+    s = re.sub('(\d+)\*mm',r'(\1*2.83464566929)',s)
+    s = re.sub('(\d+)\*in',r'(\1*72)',s)
+    s = re.sub('(\d+)\*bp',r'(\1*1)',s)
+    s = re.sub('(\d+)\*pt',r'(\1*0.996264009963)',s)
+    try:
+        answer = eval(s)
+    except SyntaxError:
+        answer = '['+s+']'
+    return answer
 
 def find_expression(line,col):
     '''Given a line and a cursor pos, return a tuple of str (prefix, expression, suffix).
@@ -72,7 +103,7 @@ def find_expression(line,col):
     if col==0:
         return ('', '', line)
 
-    alphabet = 'abcdefghijklmnopqrstuvwxyz1234567890.-+*/^\\{}()'
+    alphabet = 'abcdefghijklmnopqrstuvwxyz1234567890!.-+*/^\\{}()'
     target = ''
     p = col
     while p>=0:
@@ -112,9 +143,12 @@ def evaluate_expression(target):
     if target.endswith('='):
         target = target.strip('=')
         answer = workout(target)
-        approx = float('%g' % answer)
-        rel = '=' if answer==approx else '\\simeq'
-        return '{0} {1} {2:g}'.format(target,rel,approx)
+        try:
+            approx = float('%g' % answer)
+            rel = '=' if fabs(answer-approx)<1e-15 else '\\simeq'
+            return '{0} {1} {2:g}'.format(target,rel,approx)
+        except:
+            return answer+'?'
     
     if target.endswith("\\"):
         import fractions as f

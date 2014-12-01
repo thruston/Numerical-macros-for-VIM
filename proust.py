@@ -9,10 +9,23 @@ import re
 phi = 1.61803398875
 
 def sind(x):
+    '''Sine of x in degrees.
+
+    >>> (sind(45)-sqrt(1/2))<1e-15
+    True
+    '''
     return sin(x*pi/180)
 
 def cosd(x):
+    '''Cosine of x in degrees
+
+    >>> (cosd(30)-sqrt(3/4))<1e-15
+    True
+    '''
     return cos(x*pi/180)
+
+def tand(x):
+    return sind(x)/cosd(x)
 
 def choose(n, k):
     '''A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
@@ -177,4 +190,4 @@ try:
 except ImportError:
     print 'NB. Vim module not imported, I assume you are running doctest...'
 
-# Normal 
+# Normal 6.8

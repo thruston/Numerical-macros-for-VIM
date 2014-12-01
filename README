@@ -1,14 +1,12 @@
 Numerical macros for VIM
 
-Toby Thurston -- 10 Oct 2011 
+Toby Thurston -- 01 Dec 2014 
 
 A small set of macros that I find useful to enhance VIM.  Comments always welcome. 
  
+- table.pl is a filter to help you work with tables
+- proust.py is an "in situ" calculator
+
 Read the comments in the source files for details.  Better still, use the perl POD tools 
 to get detailed guides to the perl tools, and pydoc for the python ones. 
 
-Changes
-
-Toby Thurston -- 21 Oct 2011 - tightened up date matching regex for date routines
-Toby Thurston -- 06 Jan 2013 - new unwrap/wrap function in table.pl
-Toby Thurston -- 05 Nov 2013 - proust is new Python inline calc

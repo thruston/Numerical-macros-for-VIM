@@ -27,7 +27,6 @@
 use strict;
 use warnings;
 use feature "switch";
-#use bignum  ('p', -12);         # nice rounding to 12 places
 use Statistics::Descriptive;    # used for add functions
 use List::Util qw(min max sum);   
 use POSIX      qw(floor ceil);
@@ -118,9 +117,13 @@ for (@input_lines) {
     my @cells = split $delim;
     my $i=0;
     for (@cells) {
-        if (/^\s*£/) {
-            $money_cols[$i] ||= '£';
-            $_ =~ s/£//;
+        if (/^([£€]\s?)/) {
+            $money_cols[$i] ||= $1;
+            $_ =~ s/$1//;
+        }
+        elsif ( /^\s*\$/ ) {
+            $money_cols[$i] ||= '$';
+            $_ =~ s/\$//;
         }
         else{
             $money_cols[$i] ||= 0;

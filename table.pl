@@ -31,6 +31,8 @@ use feature "switch";
 use Statistics::Descriptive;    # used for add functions
 use List::Util qw(min max sum);   
 use POSIX      qw(floor ceil);
+use utf8; # for £ signs
+use open qw[ :std :utf8 ];
 
 # following Cowlishaw, TRL p.136
 #                     sign?    mantissa------>     exponent? 
@@ -100,6 +102,7 @@ if (@input_lines) {
 }
 
 # split the input lines into cells in $Table->{data}
+my @money_cols = ();
 my $Table = { rows => 0, cols => 0 };
 for (@input_lines) {
     s/^\s*//; # remove leading space
@@ -112,7 +115,18 @@ for (@input_lines) {
         push @{$Table->{specials}->[$Table->{rows}]}, $_; 
         next;
     }
-    my @cells = split $delim; 
+    my @cells = split $delim;
+    my $i=0;
+    for (@cells) {
+        if (/^\s*£/) {
+            $money_cols[$i] ||= '£';
+            $_ =~ s/£//;
+        }
+        else{
+            $money_cols[$i] ||= 0;
+        }
+        $i++;
+    }
     push @{$Table->{data}}, \@cells ;
     $Table->{rows}++;   
     $Table->{cols} = max($Table->{cols},scalar @cells);
@@ -135,19 +149,22 @@ while (@agenda) {
     }    
 }
 
-# work out the widths and alignments
+# work out the widths and alignments, and add back any required £ signs
 my @widths = (0) x $Table->{cols};
 my @aligns = (0) x $Table->{cols};
 for (my $c=0; $c<$Table->{cols}; $c++ ) {
     for (my $r=0; $r<$Table->{rows}; $r++ ) {
         next unless defined $Table->{data}->[$r][$c];
-        $widths[$c] = max($widths[$c], length $Table->{data}->[$r][$c]);
         if ( $Table->{data}->[$r][$c] =~ $Number_pattern ) {
             $aligns[$c]++;
+            if ($money_cols[$c] ne 0) {
+                $Table->{data}->[$r][$c] = $money_cols[$c] . $Table->{data}->[$r][$c];
+            }
         }
         else {
             $aligns[$c]--;
         }
+        $widths[$c] = max($widths[$c], length $Table->{data}->[$r][$c]);
     }
 }
 
@@ -189,6 +206,9 @@ for (my $r=0; $r<$Table->{rows}; $r++ ) {
         $out .=  $separator;
     }
     $out =~ s/$separator\Z/ $eol_marker/;
+    if ($separator eq '<td>') { # hack for html form
+        $out = "<tr><td>$out";
+    }
     print $out, "\n";
 }
 
@@ -200,6 +220,7 @@ sub set_output_form {
         when("tex")   { $separator = ' & '; $eol_marker = '\\cr' }
         when("latex") { $separator = ' & '; $eol_marker = '\\\\' }
         when("csv")   { $separator = q{,} ; $eol_marker = q{}    }
+        when("html")  { $separator = '<td>'; $eol_marker = q{}   }
         when("debug") { $separator = ' ! '; $eol_marker = '<<'   }
         default       { $separator = q{  }; $eol_marker = q{}    }
     }

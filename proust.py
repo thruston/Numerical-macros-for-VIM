@@ -1,11 +1,18 @@
 #! /usr/bin/env python
 # TeX-aware inline calculator/expression evaluator for Vim
-# uses code in lumberjack.py
 # Toby Thurston -- 05 Nov 2013 
 
 from __future__ import division
 from math import sqrt, log, exp, sin, cos, tan, asin, acos, atan, hypot, pi, e, ceil, floor, factorial, fabs
 import re
+
+phi = 1.61803398875
+
+def sind(x):
+    return sin(x*pi/180)
+
+def cosd(x):
+    return cos(x*pi/180)
 
 def choose(n, k):
     '''A fast way to calculate binomial coefficients by Andrew Dalke (contrib).
@@ -103,7 +110,7 @@ def find_expression(line,col):
     if col==0:
         return ('', '', line)
 
-    alphabet = 'abcdefghijklmnopqrstuvwxyz1234567890!.-+*/^\\{}()'
+    alphabet = 'abcdefghijklmnopqrstuvwxyz1234567890!,.-+*/^\\{}()'
     target = ''
     p = col
     while p>=0:

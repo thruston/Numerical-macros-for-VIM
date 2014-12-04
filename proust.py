@@ -1,28 +1,30 @@
-#! /usr/bin/env python
-# TeX-aware inline calculator/expression evaluator for Vim
-# Toby Thurston -- 05 Nov 2013 
+"""A TeX-aware inline calculator/expression evaluator for Vim
 
-from __future__ import division
-from math import sqrt, log, exp, sin, cos, tan, asin, acos, atan, hypot, pi, e, ceil, floor, factorial, fabs
+Toby Thurston -- 04 Dec 2014 
+"""
+
+from __future__ import division, print_function
+from math import sqrt, log, exp, sin, cos, tan, asin, acos, atan, hypot, pi, e, ceil, floor, factorial, fabs, degrees, radians
 import re
 
 phi = 1.61803398875
 
 def sind(x):
-    '''Sine of x in degrees.
+    """
+    Sine of x in degrees.
 
-    >>> (sind(45)-sqrt(1/2))<1e-15
+    >>> abs(sind(45)-sqrt(1/2))<1e-15
     True
-    '''
-    return sin(x*pi/180)
+    """
+    return sin(radians(x))
 
 def cosd(x):
     '''Cosine of x in degrees
 
-    >>> (cosd(30)-sqrt(3/4))<1e-15
+    >>> abs(cosd(30)-sqrt(3/4))<1e-15
     True
     '''
-    return cos(x*pi/180)
+    return cos(radians(x))
 
 def tand(x):
     return sind(x)/cosd(x)
@@ -34,6 +36,8 @@ def choose(n, k):
     6
     >>> choose(2,4)
     0
+    >>> choose(20,8)
+    125970
     '''
     if 0 <= k <= n:
         ntok = 1
@@ -178,16 +182,17 @@ def evaluate_expression(target):
     
     return '{0}'.format(workout(target))
 
-try:
-    import vim
-    line = vim.current.line
-    (row,col) = vim.current.window.cursor
+if __name__ == '__main__':
+    try:
+        import vim
+        line = vim.current.line
+        (row,col) = vim.current.window.cursor
 
-    (prefix, expression, suffix) = find_expression(line,col)
-    answer = evaluate_expression(expression)
-    vim.current.line = prefix+answer+suffix
-    vim.current.window.cursor = (row,1+len(prefix+answer)) 
-except ImportError:
-    print 'NB. Vim module not imported, I assume you are running doctest...'
+        (prefix, expression, suffix) = find_expression(line,col)
+        answer = evaluate_expression(expression)
+        vim.current.line = prefix+answer+suffix
+        vim.current.window.cursor = (row,1+len(prefix+answer)) 
+    except ImportError:
+        pass
 
-# Normal 6.8
+

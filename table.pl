@@ -33,9 +33,9 @@ use POSIX      qw(floor ceil);
 use utf8; # for £ signs
 use open qw[ :std :utf8 ];
 
-# following Cowlishaw, TRL p.136
-#                     sign?    mantissa------>     exponent? 
-my $Number_atom = qr{ [-+]? (?:\d+\.\d*|\.?\d+) (?:E[-+]?\d+)? }ixmso;
+# following Cowlishaw, TRL p.136, but excluding octal (leading 0 and no point)
+#                     sign?    mantissa-------------->  exponent? 
+my $Number_atom = qr{ [-+]? (?:\d+\.\d*|\.\d+|[1-9]\d*) (?:E[-+]?\d+)? }ixmso;
 my $Number_pattern   = qr{\A $Number_atom \Z}ixmso;
 my $Interval_pattern = qr{\A\( ( $Number_atom ) \, ( $Number_atom ) \)\Z}ixsmo;
 my $Date_pattern     = qr{\A ([12]\d\d\d)\D?([01]\d)\D?([0123]\d) \Z}ixmso; # make groups capture
@@ -630,7 +630,24 @@ sub mondex {
     return 12*$y+($m-1)
 }
 
-
+# return "OK" or correct check digit for given ISBN 10
+sub isbn10 {
+    my $candidate = shift;
+    my $candidate_check_digit = uc(substr($candidate,-1,1));
+    my $check_sum = 0;
+    for (my $i=0; $i<9; $i++) {
+        $check_sum += (10-$i)*substr($candidate,$i,1);
+    }
+    my $check_digit = 11 - $check_sum%11;
+    $check_digit = 0   if $check_digit == 11;
+    $check_digit = 'X' if $check_digit == 10;
+    if ($check_digit eq $candidate_check_digit) {
+        return "OK $candidate_check_digit"
+    }
+    else {
+        return $check_digit
+    }
+}
 
 __END__
 
@@ -1061,7 +1078,7 @@ Probably plenty, because I've not done very rigorous testing.
 
 =head1 AUTHOR
 
-Toby Thurston -- 28 Aug 2013 
+Toby Thurston -- 04 Dec 2014 
 
 =head1 LICENSE AND COPYRIGHT
 

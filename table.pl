@@ -33,9 +33,9 @@ use POSIX      qw(floor ceil);
 use utf8; # for £ signs
 use open qw[ :std :utf8 ];
 
-# following Cowlishaw, TRL p.136, but excluding octal (leading 0 and no point)
+# following Cowlishaw, TRL p.136, but excluding octal (leading 0 and no point) but including 0 itself
 #                     sign?    mantissa-------------->  exponent? 
-my $Number_atom = qr{ [-+]? (?:\d+\.\d*|\.\d+|[1-9]\d*) (?:E[-+]?\d+)? }ixmso;
+my $Number_atom = qr{ [-+]? (?:\d+\.\d*|\.\d+|0|[1-9]\d*) (?:E[-+]?\d+)? }ixmso;
 my $Number_pattern   = qr{\A $Number_atom \Z}ixmso;
 my $Interval_pattern = qr{\A\( ( $Number_atom ) \, ( $Number_atom ) \)\Z}ixsmo;
 my $Date_pattern     = qr{\A ([12]\d\d\d)\D?([01]\d)\D?([0123]\d) \Z}ixmso; # make groups capture

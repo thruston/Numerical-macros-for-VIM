@@ -16,6 +16,7 @@
 #        add function    add sum, mean, var, sd etc to foot of column
 #        arr col-list    rearrange/insert/delete cols and/or do calculations on column values.
 #        dp dp-list      round numbers in each col to specified decimal places
+#        sf sf-list      round numbers in each col to specified decimal places
 #        reshape wide | long   reshape table (for R etc)
 #        make tex | latex | plain | csv   output in tex etc form
 #        label           label columns with letters
@@ -30,6 +31,7 @@ use feature "switch";
 use Statistics::Descriptive;    # used for add functions
 use List::Util qw(min max sum);   
 use POSIX      qw(floor ceil);
+use Math::SigFigs;
 use utf8; # for £ signs
 use open qw[ :std :utf8 ];
 
@@ -49,6 +51,7 @@ my %Action_for = (
     make    => \&set_output_form,
     gen     => \&append_new_rows,
     dp      => \&round_cols,
+    sf      => \&sigfig_cols,
     label   => \&add_col_labels,
     reshape => \&reshape_table,
     reflow  => \&reshape_table,
@@ -160,7 +163,7 @@ for (my $c=0; $c<$Table->{cols}; $c++ ) {
         next unless defined $Table->{data}->[$r][$c];
         if ( $Table->{data}->[$r][$c] =~ $Number_pattern ) {
             $aligns[$c]++;
-            if ($money_cols[$c] ne 0) {
+            if (defined $money_cols[$c] && $money_cols[$c] ne 0) {
                 $Table->{data}->[$r][$c] = $money_cols[$c] . $Table->{data}->[$r][$c];
             }
         }
@@ -424,6 +427,32 @@ sub make_wide_table {
     $Table->{cols} = 1 + scalar @keys;
 }
 
+sub sigfig_cols {
+    my $sf_string = shift;
+
+    # no-op unless we have a string of numbers
+    return unless defined $sf_string && $sf_string =~ m{\A \d+ \Z}xims;
+
+    # extend short string by repeating last digit
+    my $lsf = length($sf_string);
+    if ($lsf < $Table->{cols}) {
+        $sf_string .= substr($sf_string, -1) x ($Table->{cols}-$lsf);
+    }
+
+    for my $row (@{$Table->{data}}) {
+        my $i = 0;
+        for my $cell (@{$row}) {
+            my $sf = substr $sf_string, $i++, 1;
+            next if !defined $cell;
+            if ( $cell =~ $Number_pattern ) {
+                $cell = FormatSigFigs($cell,$sf);
+            }
+            elsif ( $cell =~ $Interval_pattern ) {
+                $cell = sprintf "(%s,%s)", FormatSigFigs($1,$sf), FormatSigFigs($2,$sf);
+            }
+        }
+    }
+}
 
 sub round_cols {
     my $dp_string = shift;
@@ -619,7 +648,7 @@ sub date {
 sub month_number {
     my ($s) = @_;
     my $m = index("JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC",uc(substr($s,0,3)));
-    return sprintf("%02d",$m/4+1)
+    return sprintf "%02d", $m/4+1;
 }
 
 # return months since Jan 2000 from mmm-yy
@@ -647,6 +676,13 @@ sub isbn10 {
     else {
         return $check_digit
     }
+}
+
+# return hh:mm from decimal hours
+sub hhmm {
+    my $h = shift;
+    my $m = floor($h*60+0.5);
+    return sprintf "%02d:%02d", $m/60, $m%60;
 }
 
 __END__

@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # encoding: utf-8
 
-# Toby Thurston -- 28 Jun 2010 
+# Toby Thurston -- 09 Aug 2015 
 
 import vim
 import decimal  
@@ -170,7 +170,8 @@ while want_more:
     vim.command("redraw!")
     vim.command("let expr = input('" + prompt + "')")
     user_input = vim.eval('expr')
-    if user_input == None: break
+    if user_input in "quit bye exit".split():
+        break
     if user_input == "": user_input = o['enter_key']
 
     for token in tokens_from(user_input):
@@ -220,7 +221,7 @@ while want_more:
         elif token == "?": 
             msg = """Brother Maynard - a simple RPN calculator for VIM in Python
                   Use it a bit like an HP calculator, ie 2 2 + will produce 4
-                  <Esc> to finish; "=" copies the "top" of the stack to your current buffer.
+                  "quit" to finish; "=" copies the "top" of the stack to your current buffer.
 
                   "... and the number of the counting shall be three."
                   """

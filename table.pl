@@ -950,6 +950,21 @@ the command "arr a{dow(a)}" creates this
     2011-03-19  Sat 
     2011-07-05  Tue 
 
+alternatively "arr a{base()-base(a)}" will produce the days from each date to today.
+
+    2011-01-17  1681 
+    2011-02-23  1644 
+    2011-03-19  1620 
+    2011-07-05  1512 
+
+and "arr a{date(base(a)+140)}" will add 20 weeks to each date
+
+    2011-01-17  2011-06-06 
+    2011-02-23  2011-07-13 
+    2011-03-19  2011-08-06 
+    2011-07-05  2011-11-22 
+
+
 Note: dates will also be recognized in the form yyyymmdd or yyyy/mm/dd, etc.  The exact matching expression is
 
     \A([12]\d\d\d)\D?([01]\d)\D?([0123]\d)\Z
@@ -1114,7 +1129,7 @@ Probably plenty, because I've not done very rigorous testing.
 
 =head1 AUTHOR
 
-Toby Thurston -- 04 Dec 2014 
+Toby Thurston -- 25 Aug 2015 
 
 =head1 LICENSE AND COPYRIGHT
 

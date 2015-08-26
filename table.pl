@@ -596,7 +596,7 @@ sub dow {
 # Convert dd/mm/yyyy to yyyy-mm-dd
 sub etos {
     my ($edate) = @_;
-    if ($edate =~ /([0123]\d)\/(0\d|1[12])\/([12]\d\d\d)/) {
+    if ($edate =~ /([0123]\d)\/(0[1-9]|1[012])\/([12]\d\d\d)/) {
         return date(base("$3-$2-$1"))
     }
     else {
@@ -607,7 +607,7 @@ sub etos {
 # Convert mm/dd/yyyy to yyyy-mm-dd
 sub utos {
     my ($udate) = @_;
-    if ($udate =~ /(0?\d|1[12])\/(0?\d|[12]\d|3[01])\/([12]\d\d\d)/) {
+    if ($udate =~ /(0?[1-9]|1[012])\/(0?\d|[12]\d|3[01])\/([12]\d\d\d)/) {
         return date(base("$3-$1-$2"))
     }
     else {

@@ -593,6 +593,28 @@ sub dow {
     return "DoW($base)";
 }
 
+# Convert dd/mm/yyyy to yyyy-mm-dd
+sub etos {
+    my ($edate) = @_;
+    if ($edate =~ /([0123]\d)\/(0\d|1[12])\/([12]\d\d\d)/) {
+        return date(base("$3-$2-$1"))
+    }
+    else {
+        return $edate;
+    }
+}
+#
+# Convert mm/dd/yyyy to yyyy-mm-dd
+sub utos {
+    my ($udate) = @_;
+    if ($udate =~ /(0?\d|1[12])\/(0?\d|[12]\d|3[01])\/([12]\d\d\d)/) {
+        return date(base("$3-$1-$2"))
+    }
+    else {
+        return $udate;
+    }
+}
+
 # Convert yyyy-mm-dd to base date assuming Gregorian calendar rules
 sub base {
     my ($date) = @_;
@@ -971,6 +993,10 @@ Note: dates will also be recognized in the form yyyymmdd or yyyy/mm/dd, etc.  Th
 
 so you must use 4 digit years, but you can use any non-digit as a separator.  It also means
 that you can use dates like 2011-12-32.  You'll find that date(base('2011-12-32')) returns '2012-01-01'.
+
+To get dates in this sorted format (which is the ISO standard by the way), you can use C<etos> and C<utos>.
+C<etos> takes European dates in the form dd/mm/yyyy and returns yyyy-mm-dd; C<utos> takes US dates in the form mm/dd/yyyy.
+Note that they still both expect full year numbers.  There's only so much automation that's worth while.  
 
 There's also a C<month_number> function that takes a string that looks like a month and returns an appropriate number.
 

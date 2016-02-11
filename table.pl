@@ -16,7 +16,7 @@
 #        add function    add sum, mean, var, sd etc to foot of column
 #        arr col-list    rearrange/insert/delete cols and/or do calculations on column values.
 #        dp dp-list      round numbers in each col to specified decimal places
-#        sf sf-list      round numbers in each col to specified decimal places
+#        sf sf-list      round numbers in each col to specified significant figures
 #        reshape wide | long   reshape table (for R etc)
 #        make tex | latex | plain | csv   output in tex etc form
 #        label           label columns with letters
@@ -29,6 +29,7 @@ use strict;
 use warnings;
 use feature "switch";
 use Statistics::Descriptive;    # used for add functions
+use Math::Prime::Util qw(factor);
 use List::Util qw(min max sum);   
 use POSIX      qw(floor ceil);
 use Math::SigFigs;
@@ -484,6 +485,11 @@ sub round_cols {
 sub arrange_cols {
     my $permutation = shift;
     return unless $permutation;
+     
+    if ( $permutation =~ m{\A~} ) {
+        $permutation = substr('abcdefghijklmnopqrstuvwxyz',0,$Table->{cols}) 
+                     . substr($permutation, 1);
+    }
     
     my %cumulative_sum_of = ();
     for (my $r = 0; $r < $Table->{rows}; $r++ ) {
@@ -495,6 +501,12 @@ sub arrange_cols {
             $cumulative_sum_of{$key} += $value if $value =~ m{$Number_pattern};
             given($value) {
                 when ( /$Number_pattern/ && $value<0 ) { $value = "($value)" }
+                when ( /([.1234567890]+)([BKMG])/ ) {
+                  $value = sprintf "%g", $1 * ($2 eq 'G' ? 1073741824
+                                             : $2 eq 'M' ? 1048576 
+                                             : $2 eq 'K' ? 1024
+                                             : 1);
+            }
                 when (!/$Number_pattern/)              { $value = "'$value'" }          
             }
             $value_for{$key} = $value;
@@ -516,7 +528,7 @@ sub arrange_cols {
                     $m =~ s/\b([a-z])\b/$value_for{$1}/g; 
                     $m =~ s/\b([A-Z])\b/$cumulative_sum_of{lc $1}/g;
                     # evaluate & replace answer with expression on error
-                    $value = eval $m; $value = $m if $@;
+                    $value = join(' ', eval $m); $value = $m if $@;
                 }
             }
             push @$new_row_ref, $value;
@@ -673,6 +685,18 @@ sub month_number {
     return sprintf "%02d", $m/4+1;
 }
 
+sub make_date {
+    my $s = shift;
+    if ( $s =~ m{\A (\d+) \s (\S+) \s ((?:19|20)\d\d) \Z}iosmx ) {
+        my $m = month_number($2);
+        my $d = sprintf "%02d", $1;
+        return date(base("$3-$m-$d"))
+    }
+    else {
+        return $s;
+    }
+}
+
 # return months since Jan 2000 from mmm-yy
 sub mondex {
     my ($s) = @_;
@@ -708,6 +732,8 @@ sub hhmm {
 }
 
 __END__
+
+=pod
 
 =head1 NAME 
 
@@ -856,7 +882,7 @@ becomes
       100     200    300 
 
 It's often useful in combination with verbs that operate on columns like C<sort> or C<add>.
-So the sequence "xp add xp" will give you row totals, for example.
+So the sequence "C<xp add xp>" will give you row totals, for example.
 
 =item add [sum|mean|sd|var|...] - insert the sum|mean|etc at the bottom of a column
 
@@ -900,12 +926,19 @@ four column table then:
 
 "C<arr cd>" deletes the first two columns
 
+=item * 
+
+"C<arr abc>" keeps only the first three columns
+
 =back
 
-and so on. The syntax admittedly is a little unwieldy with large numbers of columns, 
-so you might find it easier to transpose the table first with "xp" and then 
-use the regular line editing facilities in Vim to rearrange the rows, before
-transposing them back to columns.   You might also use the C<label> verb 
+and so on.  If you want to keep everything and simply add an extra column at
+the end, there's a shortcut to save you typing lots of column letters: "C<arr
+~aa>" will keep B<all> the columns and then add two more copies of the first
+one on the end.  If you want to do more complicated things with lots of
+columns, you might find it easier to transpose the table first with "xp" and
+then use the regular line editing facilities in Vim to rearrange the rows,
+before transposing them back to columns.   You might also use the C<label> verb
 to add alphabetic labels to the top of all the columns before you start.
 
 Note: Astute readers may spot a problem here.  The sequence "arr add" meaning 
@@ -927,6 +960,10 @@ You can also insert arbitrary calculated columns by putting an expression in cur
 =item *
 
 "C<arr a{a**2}{sqrt(a)}>" adds two new cols with square and square root of the value in col 1.
+
+=item * 
+
+"C<arr ~{sqrt(a)}>" keeps all existing cols and adds a new col with the square root of the value in col 1.
 
 =back
 
@@ -1019,7 +1056,7 @@ Note that this only affects the rows, it won't magically generate the TeX or LaT
 
 The CSV option should produce something that you can easily import into Excel or similar spreadsheets. 
 However beware that it's very simple: you need to ensure that there are no commas or quotes in the data.
-To get back from CSV form to plain form do C<Table , make plain>. (Provided there are no commas in your data).
+To get back from CSV form to plain form do C<Table , make plain>. (Provided there were no commas in your data).
 
 =item reshape [long|wide] - expand or condense data tables for R
 
@@ -1155,7 +1192,7 @@ Probably plenty, because I've not done very rigorous testing.
 
 =head1 AUTHOR
 
-Toby Thurston -- 25 Aug 2015 
+Toby Thurston -- 11 Feb 2016 
 
 =head1 LICENSE AND COPYRIGHT
 

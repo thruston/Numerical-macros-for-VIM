@@ -163,6 +163,12 @@ want_more = 1
 msg = ''
 pending_unit = ''
 
+for line in vim.current.range:
+    line = line.translate(None,'_,;$£()')
+    for word in line.split():
+        if looks_like_a_number(word):
+            put(decimal.Decimal(word))
+
 while want_more:
     header = str('-P['+str(o['precision'])+']D['+str(o['fix_digits'])+']-').ljust(o['precision'],'-') + '\n'
     prompt = msg + header + '\n'.join(map(format_for_output, stack[:])) + '\nMaynard: '

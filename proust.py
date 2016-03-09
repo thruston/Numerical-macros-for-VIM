@@ -127,7 +127,7 @@ def find_expression(line,col):
     if col==0:
         return ('', '', line)
 
-    alphabet = 'abcdefghijklmnopqrstuvwxyz1234567890!,.-+*/^\\{}()'
+    alphabet = 'abcdefghijklmnopqrstuvwxyz1234567890!,.-+*/^\\{}()><'
     target = ''
     p = col
     while p>=0:

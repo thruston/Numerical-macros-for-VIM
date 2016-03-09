@@ -97,7 +97,7 @@ if (@input_lines) {
     $indent = min( map { /^(\s*)\S/; length($1) } grep { !/^\s*$/ } @input_lines ) || 0;
 
     # recognize TeX and LateX delims automatically
-    if ($input_lines[0] =~ /\&.*(\\cr|\\\\) \s* \Z/xms) {
+    if ($input_lines[0] =~ /\&.*(\\cr.*|\\\\.*)\Z/xms) {
         $eol_marker = $1;
         $delim = qr/\s*\&\s*/xms;
         $separator = ' & ';
@@ -216,6 +216,8 @@ for (my $r=0; $r<$Table->{rows}; $r++ ) {
     if ($separator eq '<td>') { # hack for html form
         $out = "<tr><td>$out";
     }
+    # remove any trailing white space (always irritating)
+    $out =~ s/\s*$//;
     print $out, "\n";
 }
 

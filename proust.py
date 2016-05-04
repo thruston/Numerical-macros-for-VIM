@@ -67,6 +67,8 @@ def workout(s):
     0.14936120510359185
     >>> workout('210mm-3in')
     379.2755905509
+    >>> workout('20.2mm')  
+    57.259842519657994
 
     '''
 
@@ -81,14 +83,16 @@ def workout(s):
     s = s.replace('\\','')
     s = re.sub('(\d)!',r'factorial(\1)',s)
     s = re.sub('([0-9\)])([a-z\(])',r'\1*\2',s)
-    s = re.sub('(\d+)\*mm',r'(\1*2.83464566929)',s)
-    s = re.sub('(\d+)\*in',r'(\1*72)',s)
-    s = re.sub('(\d+)\*bp',r'(\1*1)',s)
-    s = re.sub('(\d+)\*pt',r'(\1*0.996264009963)',s)
+    s = re.sub('(\d+(?:\.\d+)?)\*mm',r'(\1*2.83464566929)',s)
+    s = re.sub('(\d+(?:\.\d+)?)\*in',r'(\1*72)',s)
+    s = re.sub('(\d+(?:\.\d+)?)\*bp',r'(\1)',s)
+    s = re.sub('(\d+(?:\.\d+)?)\*pt',r'(\1*0.996264009963)',s)
     try:
         answer = eval(s)
     except SyntaxError:
         answer = '['+s+']'
+    except TypeError:
+        answer = '[?'+s+']'
     return answer
 
 def find_expression(line,col):

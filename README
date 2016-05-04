@@ -2,12 +2,10 @@ Numerical macros for VIM
 
 Toby Thurston -- 01 Dec 2014 
 
-A small set of macros that I find useful to enhance VIM.  Comments always welcome. 
+A small set of calculator macros that I find useful to enhance VIM.  Comments always welcome. 
  
-- table.pl is a filter to help you work with tables
 - proust.py is an "in situ" calculator
 - maynard.py is a pop up RPN-style calculator
 
-Read the comments in the source files for details.  Better still, use the perl POD tools 
-to get detailed guides to the perl tools, and pydoc for the python ones. 
+Read the comments in the source files for details. 
 
